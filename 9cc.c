@@ -63,6 +63,14 @@ void tokenize() {
             p++;
             continue;
         }
+
+        if (*p == '(' || *p == ')') {
+            tokens[i].ty = *p;
+            tokens[i].input = p;
+            i++;
+            p++;
+            continue;
+        }
         
         if (isdigit(*p)) {
             tokens[i].ty = TK_NUM;
@@ -120,6 +128,12 @@ int consume(int ty) {
     return 1;
 }
 
+// ノード生成関数の関数プロトタイプ
+Node *expr();
+Node *mul();
+Node *term();
+Node *num();
+
 // 数値ノードを返す関数
 Node *num() {
     if (tokens[pos].ty == TK_NUM)
@@ -128,14 +142,28 @@ Node *num() {
     error_at(tokens[pos].input, "数値ではないトークンです");
 }
 
+Node *term() {
+    // 次のトークンが '(' なら "(" expr ")" のはず
+    if (consume('(')) {
+        Node *node = expr();
+        if (!consume(')'))
+            error_at(tokens[pos].input, "開きカッコに対応する閉じカッコがありません");
+
+        return node;
+    }
+
+    // そうでなければ数値
+    return num();
+}
+
 Node *mul() {
-    Node *node = num();
+    Node *node = term();
 
     for(;;) {
         if (consume('*'))
-            node = new_node('*', node, num());
+            node = new_node('*', node, term());
         else if (consume('/'))
-            node = new_node('/', node, num());
+            node = new_node('/', node, term());
         else
             return node;
     }
