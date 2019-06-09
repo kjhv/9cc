@@ -56,7 +56,7 @@ void tokenize() {
             continue;
         }
 
-        if (*p == '+' || *p == '-') {
+        if (*p == '+' || *p == '-' || *p == '*' || *p == '/') {
             tokens[i].ty = *p;
             tokens[i].input = p;
             i++;
@@ -128,15 +128,28 @@ Node *num() {
     error_at(tokens[pos].input, "数値ではないトークンです");
 }
 
-// 加減算のみサポートする expr 関数
-Node *expr() {
+Node *mul() {
     Node *node = num();
 
     for(;;) {
+        if (consume('*'))
+            node = new_node('*', node, num());
+        else if (consume('/'))
+            node = new_node('/', node, num());
+        else
+            return node;
+    }
+}
+
+// 加減算のみサポートする expr 関数
+Node *expr() {
+    Node *node = mul();
+
+    for(;;) {
         if (consume('+'))
-            node = new_node('+', node, num());
+            node = new_node('+', node, mul());
         else if (consume('-'))
-            node = new_node('-', node, num());
+            node = new_node('-', node, mul());
         else 
             return node;
     }
@@ -161,6 +174,12 @@ void gen(Node *node) {
     case '-':
         printf("  sub rax, rdi\n");
         break;
+    case '*':
+        printf("  imul rdi\n");
+        break;
+    case '/':
+        printf("  cqo\n");
+        printf("  idiv rdi\n");
     }
 
     printf("  push rax\n");
