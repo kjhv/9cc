@@ -131,15 +131,42 @@ int consume(int ty) {
 // ノード生成関数の関数プロトタイプ
 Node *expr();
 Node *mul();
+Node *uary();
 Node *term();
 Node *num();
 
-// 数値ノードを返す関数
-Node *num() {
-    if (tokens[pos].ty == TK_NUM)
-        return new_node_num(tokens[pos++].val);
+Node *expr() {
+    Node *node = mul();
 
-    error_at(tokens[pos].input, "数値ではないトークンです");
+    for(;;) {
+        if (consume('+'))
+            node = new_node('+', node, mul());
+        else if (consume('-'))
+            node = new_node('-', node, mul());
+        else 
+            return node;
+    }
+}
+
+Node *mul() {
+    Node *node = uary();
+
+    for(;;) {
+        if (consume('*'))
+            node = new_node('*', node, uary());
+        else if (consume('/'))
+            node = new_node('/', node, uary());
+        else
+            return node;
+    }
+}
+
+Node *uary() {
+    if (consume('+'))
+        return term();
+    if (consume('-'))
+        return new_node('-', new_node_num(0), term());
+    return term();
 }
 
 Node *term() {
@@ -156,31 +183,12 @@ Node *term() {
     return num();
 }
 
-Node *mul() {
-    Node *node = term();
+// 数値ノードを返す関数
+Node *num() {
+    if (tokens[pos].ty == TK_NUM)
+        return new_node_num(tokens[pos++].val);
 
-    for(;;) {
-        if (consume('*'))
-            node = new_node('*', node, term());
-        else if (consume('/'))
-            node = new_node('/', node, term());
-        else
-            return node;
-    }
-}
-
-// 加減算のみサポートする expr 関数
-Node *expr() {
-    Node *node = mul();
-
-    for(;;) {
-        if (consume('+'))
-            node = new_node('+', node, mul());
-        else if (consume('-'))
-            node = new_node('-', node, mul());
-        else 
-            return node;
-    }
+    error_at(tokens[pos].input, "数値ではないトークンです");
 }
 
 void gen(Node *node) {
