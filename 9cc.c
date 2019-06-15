@@ -328,6 +328,28 @@ void gen(Node *node) {
 
 }
 
+void expect(int line, int expected, int actual) {
+    if (expected == actual)
+        return;
+    fprintf(stderr, "%d: %d expected, but got %d\n", line, expected, actual);
+    exit(1);
+}
+
+void runtest() {
+    Vector *vec = new_vector();
+    expect(__LINE__, 0, vec->len);
+
+    for (long i = 0; i < 100; i++)
+        vec_push(vec, (void *)i);
+
+    expect(__LINE__, 100, vec->len);
+    expect(__LINE__, 0, (long)vec->data[0]);
+    expect(__LINE__, 50, (long)vec->data[50]);
+    expect(__LINE__, 99, (long)vec->data[99]);
+
+    printf("OK\n");
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         error("引数の個数が正しくありません");
@@ -335,6 +357,12 @@ int main(int argc, char **argv) {
     }
 
     user_input = argv[1];
+
+    if (strcmp(user_input, "-test") == 0) {
+        runtest();
+        return 0;
+    }
+
     // トークナイズした結果を格納するベクタ
     Vector *vec = new_vector();
     // トークナイズする
