@@ -23,7 +23,7 @@ void error_at(char *loc, char *msg) {
 
 // user_inputが指している文字列を
 // トークンに分割して vec に保存する
-void tokenize(Vector *vec) {
+void tokenize() {
     char *p = user_input;
 
     while (*p) {
@@ -60,8 +60,15 @@ void tokenize(Vector *vec) {
         if (*p == '+' || *p == '-' ||
             *p == '*' || *p == '/' ||
             *p == '(' || *p == ')' ||
-            *p == '<' || *p == '>') {
+            *p == '<' || *p == '>' ||
+            *p == ';' || *p == '=') {
             vec_push(vec, new_token(*p, 0, p));
+            p++;
+            continue;
+        }
+
+        if ('a' <= *p && *p <= 'z') {
+            vec_push(vec, new_token(TK_IDENT, 0, p));
             p++;
             continue;
         }
@@ -96,99 +103,132 @@ Node *new_node_num(int val) {
 
 // トークンを先読みして期待した型ならば１トークン読み進めて
 // 真を返す関数
-int consume(Vector *vec, int ty) {
-    if (((Token*)vec->data[pos])->ty != ty)
+int consume(int ty) {
+    if (tokens[pos]->ty != ty)
         return 0;
     pos++;
     return 1;
 }
 
-Node *expr(Vector *vec) {
-    return equality(vec);
+void program() {
+    int i = 0;
+    while(tokens[pos]->ty != TK_EOF)
+        code[i++] = stmt();
+
+    code[i] = NULL;
 }
 
-Node *equality(Vector *vec) {
-    Node *node = rational(vec);
+Node *stmt() {
+    Node *node = expr();
+    if (!consume(';'))
+        error_at(tokens[pos]->input, "';'ではないトークンです");
+    
+    return node;
+}
+
+Node *expr() {
+    return assign();
+}
+
+Node *assign() {
+    Node *node = equality();
+    if (consume('='))
+        node = new_node('=', node, assign());
+
+    return node;
+}
+
+Node *equality() {
+    Node *node = rational();
 
     for (;;) {
-        if (consume(vec, TK_EQ))
-            node = new_node(TK_EQ, node, rational(vec));
-        else if (consume(vec, TK_NE))
-            node = new_node(TK_NE, node, rational(vec));
+        if (consume(TK_EQ))
+            node = new_node(TK_EQ, node, rational());
+        else if (consume(TK_NE))
+            node = new_node(TK_NE, node, rational());
         else 
             return node;
     }
 }
 
-Node *rational(Vector *vec) {
-    Node *node = add(vec);
+Node *rational() {
+    Node *node = add();
 
     for(;;) {
-        if (consume(vec, '<'))
-            node = new_node('<', node, add(vec));
-        else if (consume(vec, TK_LE))
-            node = new_node(TK_LE, node, add(vec));
-        else if (consume(vec, '>'))
-            node = new_node('<', add(vec), node);
-        else if (consume(vec, TK_GE))
-            node = new_node(TK_LE, add(vec), node);
+        if (consume('<'))
+            node = new_node('<', node, add());
+        else if (consume(TK_LE))
+            node = new_node(TK_LE, node, add());
+        else if (consume('>'))
+            node = new_node('<', add(), node);
+        else if (consume(TK_GE))
+            node = new_node(TK_LE, add(), node);
         else 
             return node;
     }
 }
 
-Node *add(Vector *vec) {
-    Node *node = mul(vec);
+Node *add() {
+    Node *node = mul();
 
     for(;;) {
-        if (consume(vec, '+'))
-            node = new_node('+', node, mul(vec));
-        else if (consume(vec, '-'))
-            node = new_node('-', node, mul(vec));
+        if (consume('+'))
+            node = new_node('+', node, mul());
+        else if (consume('-'))
+            node = new_node('-', node, mul());
         else 
             return node;
     }
 }
 
-Node *mul(Vector *vec) {
-    Node *node = uary(vec);
+Node *mul() {
+    Node *node = uary();
 
     for(;;) {
-        if (consume(vec, '*'))
-            node = new_node('*', node, uary(vec));
-        else if (consume(vec, '/'))
-            node = new_node('/', node, uary(vec));
+        if (consume('*'))
+            node = new_node('*', node, uary());
+        else if (consume('/'))
+            node = new_node('/', node, uary());
         else
             return node;
     }
 }
 
-Node *uary(Vector *vec) {
-    if (consume(vec, '+'))
-        return term(vec);
-    if (consume(vec, '-'))
-        return new_node('-', new_node_num(0), term(vec));
-    return term(vec);
+Node *uary() {
+    if (consume('+'))
+        return term();
+    if (consume('-'))
+        return new_node('-', new_node_num(0), term());
+    return term();
 }
 
-Node *term(Vector *vec) {
+Node *term() {
     // 次のトークンが '(' なら "(" expr ")" のはず
-    if (consume(vec, '(')) {
-        Node *node = expr(vec);
-        if (!consume(vec, ')'))
-            error_at(((Token*)vec->data[pos])->input, "開きカッコに対応する閉じカッコがありません");
+    if (consume('(')) {
+        Node *node = expr();
+        if (!consume(')'))
+            error_at(tokens[pos]->input, "開きカッコに対応する閉じカッコがありません");
 
         return node;
     }
 
+    if (tokens[pos]->ty == TK_IDENT) {
+        char varname = tokens[pos++]->input[0];
+
+        Node *node = malloc(sizeof(Node));
+        node->ty = ND_LVAR;
+        node->offset = (varname - 'a' + 1) * 8;
+        return node;
+    }
+
     // そうでなければ数値
-    return num(vec);
+    return num();
 }
 
 // 数値ノードを返す関数
-Node *num(Vector *vec) {
-    if (((Token*)vec->data[pos])->ty != TK_NUM)
-        error_at(((Token*)vec->data[pos])->input, "数値ではないトークンです");
+Node *num() {
+    if (tokens[pos]->ty != TK_NUM)
+        error_at(tokens[pos]->input, "数値ではないトークンです");
 
-    return new_node_num(((Token*)vec->data[pos++])->val);
+    return new_node_num(tokens[pos++]->val);
 }

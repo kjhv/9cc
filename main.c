@@ -24,23 +24,41 @@ int main(int argc, char **argv) {
     }
 
     // トークナイズした結果を格納するベクタ
-    Vector *vec = new_vector();
+    vec = new_vector();
+
     // トークナイズする
-    tokenize(vec);
+    tokenize();
+
+    // vec のトークンポインタ配列へのショートカット
+    // トークナイズの後に設定する必要がある
+    tokens = (Token**)(vec->data);
     // AST 作成
-    Node *node = expr(vec);
+    program();
 
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
 
-    // AST を下りながらコード生成
-    gen(node);
+    // プロローグ
+    // 変数26個分の領域を確保する
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, 208\n");
 
-    // スタックトップに式全体の値が残っているはずなので
-    // それを RAX にロードして関数からの返り値とする
-    printf("  pop rax\n");
+    // AST を下りながらコード生成
+    for (int i = 0; code[i]; i++) {
+        gen(code[i]);
+
+        // 式の評価結果としてスタックに一つの値が残っているはず
+        // なのでスタックが溢れないようにpopしておく
+        printf("  pop rax\n");
+    }
+    
+    // エピローグ
+    // 最後の式の結果が rax に残っているのでそれを返り値にする
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
     printf("  ret\n");
     return 0;
 }
