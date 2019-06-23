@@ -28,6 +28,7 @@ void runtest();
 enum {
     TK_NUM = 256,   // 整数トークン
     TK_IDENT,       // 識別子
+    TK_RETURN,      // リターン
     TK_EQ,          // ==
     TK_NE,          // !=
     TK_LE,          // <=
@@ -46,6 +47,7 @@ typedef struct {
 enum {
     ND_NUM = 256,       // 整数ノードの型
     ND_LVAR,            // ローカル変数ノードの型
+    ND_RETURN,          // リターンノードの型
 };
 
 // ノードの構造体
@@ -56,6 +58,12 @@ typedef struct Node {
     int val;            // ty が ND_NUM の場合のみ使う
     int offset;         // ty が ND_LVAR の場合のみ使う
  } Node;
+
+ // 連想配列
+ typedef struct {
+     Vector *keys;
+     Vector *vals;
+ } Map;
 
 // トークナイザー
 void tokenize();

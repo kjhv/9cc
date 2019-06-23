@@ -42,5 +42,7 @@ try 1 "49 >= 199 / 8;"
 try 6 "a = 1; a + 5;"
 try 174 "v=54;x=3;f = 123; f - x + v;"
 try 106 "r = (9 < 37); g = r + 57; w = 69 - 21; g + w;"
+try 43 "c = 219;b = 3;return 43;x = (c + b) / 3;"
+try 29 "q = 59; z = q * 2; return (q + z) / 6;"
 
 echo OK
